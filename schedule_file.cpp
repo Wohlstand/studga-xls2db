@@ -237,6 +237,55 @@ ReadXlsX::~ReadXlsX()
 
 
 
+static bool isExcel97(const std::string &path)
+{
+    static const char *xls_magic = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
+    char buff[8];
+    FILE *f = fopen(path.c_str(), "rb");
+    if(!f)
+        return false;
+
+    if(fread(buff, 1, 8, f) != 8)
+    {
+        fclose(f);
+        return false;
+    }
+    fclose(f);
+
+    if(memcmp(buff, xls_magic, 8) == 0)
+        return true;
+
+    return false;
+}
+
+static bool isExcelX(const std::string &path)
+{
+    static const char *xlsx_magic[3] =
+    {
+        "\x50\x4B\x03\x04",
+        "\x50\x4B\x05\x06",
+        "\x50\x4B\x07\x08"
+    };
+    char buff[8];
+    FILE *f = fopen(path.c_str(), "rb");
+    if(!f)
+        return false;
+
+    if(fread(buff, 1, 4, f) != 4)
+    {
+        fclose(f);
+        return false;
+    }
+    fclose(f);
+
+    for(int i = 0; i < 3; i++)
+    {
+        if(memcmp(buff, xlsx_magic[i], 4) == 0)
+            return true;
+    }
+
+    return false;
+}
 
 
 
@@ -274,11 +323,15 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
     XlBase *xl = nullptr;
     ReadXls xlsr;
     ReadXlsX xlsx;
-    if(xlsr.load(path))
-        xl = &xlsr;
-    if(!xl && xlsx.load(path))
+    if(isExcel97(path) && xlsr.load(path))
     {
-        std::fprintf(stderr, "INFO: File %s loaded as XLSX!\n", path.c_str());
+        std::fprintf(stderr, "INFO: File %s loaded as XLS (97-2003)!\n", path.c_str());
+        std::fflush(stdout);
+        xl = &xlsr;
+    }
+    if(!xl && isExcelX(path) && xlsx.load(path))
+    {
+        std::fprintf(stderr, "INFO: File %s loaded as XLSX (2007+)!\n", path.c_str());
         std::fflush(stdout);
         xl = &xlsx;
     }
