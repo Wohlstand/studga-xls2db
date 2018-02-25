@@ -1,0 +1,10 @@
+#ifndef DB_LOGIN_H
+#define DB_LOGIN_H
+
+#define BM_DATABASE_HOST        "<host>"
+#define BM_DATABASE_PORT        <port>
+#define BM_DATABASE_USER        "<user>"
+#define BM_DATABASE_PASSWORD    "<password>"
+#define BM_DATABASE_DATABASE    "<database>"
+
+#endif // DB_LOGIN_H

@@ -30,10 +30,16 @@ add_executable(${PROJECT_NAME}
     studga-xls2db.cpp
     schedule_file.cpp
     strings.cpp
+    data_base.cpp
+    schedule_manager.cpp
+    files.cpp
     ${DIRMANAGER_SRCS}
 )
 add_dependencies(${PROJECT_NAME} xlnt_external)
 target_link_libraries(${PROJECT_NAME}
     xlsreader
     xlnt$<$<CONFIG:Debug>:d>
+    mysqlclient
+    ssl
+    crypto
 )

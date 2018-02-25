@@ -2,10 +2,14 @@
 #include <xls.h>            //For Excel 97-2003
 #include <xlnt/xlnt.hpp>    //For Excel 2007+
 #include <cstdio>
+#include <ctime>
 #include <unordered_map>
 #include <regex>
 #include "strings.h"
 
+/**
+ * @brief База для XLS и XLSX парсеров
+ */
 class XlBase
 {
 public:
@@ -18,11 +22,19 @@ public:
     virtual bool chooseSheet(const int sheet) = 0;
     virtual void closeSheet() = 0;
 
+    struct Date
+    {
+        int year = -1;
+        int month = -1;
+        int day = -1;
+    };
+
     virtual int  countRows() = 0;
     virtual int  countCols() = 0;
     virtual int  lastRow() = 0;
     virtual int  lastCol() = 0;
     virtual std::string getStrCell(int row, int col) = 0;
+    virtual Date getDateCell(int row, int col) = 0;
     virtual long getLongCell(int row, int col) = 0;
     virtual double getDoubleCell(int row, int col) = 0;
 };
@@ -30,19 +42,46 @@ public:
 XlBase::~XlBase()
 {}
 
-static bool isCellEmpty(xls::st_cell::st_cell_data &cell)
-{
-    return (cell.str == NULL) || cell.str[0] == '\0';
-}
 
+
+
+/**
+ * @brief Обёртка над парсером файлов XLS (97-2003)
+ */
 class ReadXls final:
         public XlBase
 {
     xls::xlsWorkBook*  pWB = nullptr;
     xls::xlsWorkSheet* pWS = nullptr;
+
+    static bool isCellEmpty(xls::st_cell::st_cell_data &cell)
+    {
+        return (cell.str == NULL) || cell.str[0] == '\0';
+    }
 public:
     ReadXls() : XlBase() {}
     ~ReadXls();
+
+    static bool isExcel97(const std::string &path)
+    {
+        static const char *xls_magic = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
+        char buff[8];
+        FILE *f = fopen(path.c_str(), "rb");
+        if(!f)
+            return false;
+
+        if(fread(buff, 1, 8, f) != 8)
+        {
+            fclose(f);
+            return false;
+        }
+        fclose(f);
+
+        if(memcmp(buff, xls_magic, 8) == 0)
+            return true;
+
+        return false;
+    }
 
     bool load(const std::string path) override
     {
@@ -120,6 +159,34 @@ public:
         return isCellEmpty(p_cell) ? std::string("") : std::string((char*)p_cell.str);
     }
 
+    Date getDateCell(int row, int col) override
+    {
+        xls::st_row::st_row_data* p_row = &pWS->rows.row[row];
+        xls::st_cell::st_cell_data &p_cell = p_row->cells.cell[col];
+
+        if(isCellEmpty(p_cell))
+            return Date();
+
+        // initialize
+        int y = 1899, m = 12, d = 31;
+        std::tm t = {};
+        t.tm_year = y - 1900;
+        t.tm_mon  = m - 1;
+        t.tm_mday = d;
+        // modify
+        t.tm_mday += ((int)p_cell.d) - 1;
+        std::mktime(&t);
+
+        Date out;
+        out.year = 1900 + t.tm_year;
+        out.month =   1 + t.tm_mon;
+        out.day =         t.tm_mday;
+
+        char buffer[30];
+        std::strftime(buffer, 30, "%Y-%m-%d", &t);
+        return out;
+    }
+
     long getLongCell(int row, int col) override
     {
         xls::st_row::st_row_data* p_row = &pWS->rows.row[row];
@@ -143,16 +210,46 @@ ReadXls::~ReadXls()
 
 
 
-
-
+/**
+ * @brief Обёртка над парсером файлов XLSX (2007+)
+ */
 class ReadXlsX final:
         public XlBase
 {
-    xlnt::workbook  wb;
-    xlnt::worksheet ws;
+    xlnt::workbook          wb;
+    xlnt::worksheet         ws;
 public:
     ReadXlsX() : XlBase() {}
     ~ReadXlsX();
+
+    static bool isExcelX(const std::string &path)
+    {
+        static const char *xlsx_magic[3] =
+        {
+            "\x50\x4B\x03\x04",
+            "\x50\x4B\x05\x06",
+            "\x50\x4B\x07\x08"
+        };
+        char buff[8];
+        FILE *f = fopen(path.c_str(), "rb");
+        if(!f)
+            return false;
+
+        if(fread(buff, 1, 4, f) != 4)
+        {
+            fclose(f);
+            return false;
+        }
+        fclose(f);
+
+        for(int i = 0; i < 3; i++)
+        {
+            if(memcmp(buff, xlsx_magic[i], 4) == 0)
+                return true;
+        }
+
+        return false;
+    }
 
     bool load(const std::string path) override
     {
@@ -184,7 +281,7 @@ public:
 
     bool chooseSheet(const int sheet) override
     {
-        ws = wb.sheet_by_index((size_t)sheet);
+        ws = wb.sheet_by_index((std::size_t)sheet);
         return true;
     }
 
@@ -193,98 +290,53 @@ public:
 
     int  countRows() override
     {
-        return (int)ws.rows(false).reference().width();
+        return (int)ws.rows(false).reference().height();
     }
     int  countCols() override
     {
-        return (int)ws.columns(false).reference().height();
+        return (int)ws.columns(false).reference().width();
     }
 
     int  lastRow() override
     {
-        return (int)ws.rows(false).reference().width() - 1;
+        return (int)ws.rows(false).reference().height() - 1;
     }
 
     int  lastCol() override
     {
-        return (int)ws.columns(false).reference().height() - 1;
+        return (int)ws.columns(false).reference().width() - 1;
     }
 
     std::string getStrCell(int row, int col) override
     {
-        auto current_cell = xlnt::cell_reference("A1");
-        return ws.cell(current_cell.column() + (unsigned int)col, current_cell.row() + (unsigned int)row).to_string();
+        return ws.cell((xlnt::column_t::index_t)col + 1, (xlnt::row_t)row + 1).to_string();
+    }
+
+    Date getDateCell(int row, int col) override
+    {
+        auto cell = ws.cell((xlnt::column_t::index_t)col + 1, (xlnt::row_t)row + 1);
+        if(cell.is_date())
+        {
+            xlnt::date dt = cell.value<xlnt::date>();
+            return {dt.year, dt.month, dt.day};
+        }
+        return Date();
     }
 
     long getLongCell(int row, int col) override
     {
-        auto current_cell = xlnt::cell_reference("A1");
-        return (long)ws.cell(current_cell.column() + (unsigned int)col, current_cell.row() + (unsigned int)row).value<int>();
+        return (long)ws.cell((xlnt::column_t::index_t)col + 1, (xlnt::row_t)row + 1).value<int>();
     }
 
     double getDoubleCell(int row, int col) override
     {
-        auto current_cell = xlnt::cell_reference("A1");
-        return ws.cell(current_cell.column() + (unsigned int)col, current_cell.row() + (unsigned int)row).value<double>();
+        return ws.cell((xlnt::column_t::index_t)col + 1, (xlnt::row_t)row + 1).value<double>();
     }
 };
 
 ReadXlsX::~ReadXlsX()
 {
     close();
-}
-
-
-
-
-static bool isExcel97(const std::string &path)
-{
-    static const char *xls_magic = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
-    char buff[8];
-    FILE *f = fopen(path.c_str(), "rb");
-    if(!f)
-        return false;
-
-    if(fread(buff, 1, 8, f) != 8)
-    {
-        fclose(f);
-        return false;
-    }
-    fclose(f);
-
-    if(memcmp(buff, xls_magic, 8) == 0)
-        return true;
-
-    return false;
-}
-
-static bool isExcelX(const std::string &path)
-{
-    static const char *xlsx_magic[3] =
-    {
-        "\x50\x4B\x03\x04",
-        "\x50\x4B\x05\x06",
-        "\x50\x4B\x07\x08"
-    };
-    char buff[8];
-    FILE *f = fopen(path.c_str(), "rb");
-    if(!f)
-        return false;
-
-    if(fread(buff, 1, 4, f) != 4)
-    {
-        fclose(f);
-        return false;
-    }
-    fclose(f);
-
-    for(int i = 0; i < 3; i++)
-    {
-        if(memcmp(buff, xlsx_magic[i], 4) == 0)
-            return true;
-    }
-
-    return false;
 }
 
 
@@ -315,7 +367,7 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
 
     m_orig_file = path;
 
-    is_invalid = false;
+    m_isInvalid = false;
     m_errorsList.clear();
     m_capturedEntries.clear();
     m_cache.clean();
@@ -323,15 +375,15 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
     XlBase *xl = nullptr;
     ReadXls xlsr;
     ReadXlsX xlsx;
-    if(isExcel97(path) && xlsr.load(path))
+    if(ReadXls::isExcel97(path) && xlsr.load(path))
     {
-        std::fprintf(stderr, "INFO: File %s loaded as XLS (97-2003)!\n", path.c_str());
+        std::fprintf(stdout, "INFO: File %s loaded as XLS (97-2003)!\n", path.c_str());
         std::fflush(stdout);
         xl = &xlsr;
     }
-    if(!xl && isExcelX(path) && xlsx.load(path))
+    if(!xl && ReadXlsX::isExcelX(path) && xlsx.load(path))
     {
-        std::fprintf(stderr, "INFO: File %s loaded as XLSX (2007+)!\n", path.c_str());
+        std::fprintf(stdout, "INFO: File %s loaded as XLSX (2007+)!\n", path.c_str());
         std::fflush(stdout);
         xl = &xlsx;
     }
@@ -343,29 +395,34 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
         {
             xl->close();
             std::fprintf(stderr, "WARNING: File %s has less than two sheets!\n", path.c_str());
-            std::fflush(stdout);
-            return true;
+            std::fflush(stderr);
+            m_isInvalid = true;
+            return false;
         }
         int sheetsSubGrps = sheets - 2;
         std::vector<int> sheetsToFetch;
-        sheetsToFetch.push_back(0);
+        sheetsToFetch.push_back(1);//Развёрнутое расписание, для распознания чётности недели
+        sheetsToFetch.push_back(0);//Главная страница "Неделя"
         for(int i = 0; i < sheetsSubGrps; i++)
-            sheetsToFetch.push_back(2 + i);
+            sheetsToFetch.push_back(2 + i);//Подгруппы по лабораторным и по иностранному языку
 
         for(int sheet_id : sheetsToFetch)
         {
             if(!xl->chooseSheet(sheet_id))
                 continue;
-            int rowof = 0;
-            bool LectionNumber = false;
+            //! Строка внутри одной записи
+            int entryRow = 0;
+            bool gotLectionNumber = false;
             int lastRow = xl->lastRow();
             int lastCol = xl->lastCol();
             #ifdef ENABLE_LEGACY_COURATOR_HOUR
             bool legacy_hour_courator = false;
             #endif
 
+            // Очистим кэш-запись
             m_cache.clean();
-            m_cache.subgroup = sheet_id == 0 ? -1 : (int)(sheet_id - 2);
+            // Рассчитаем номер подгруппы по номеру листа
+            m_cache.subgroup = sheet_id <= 1 ? -1 : (sheet_id - 1);
 
             for(rowl = 0; rowl <= lastRow; rowl++)
             {
@@ -374,11 +431,49 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
                     std::string cellstr = xl->getStrCell(rowl, coll);
                     Strings::doTrim(cellstr);
 
+                    // ==== Лист развёрнутого расписания ====
+                    if(sheet_id == 1)
+                    {
+                        if(rowl == 0)
+                            break;//Идти считывать следующую строку...
+                        if(rowl == 1 && coll == 0)
+                        {
+                            //Контрольная дата для отсчёта чётности
+                            XlBase::Date date = xl->getDateCell(rowl, coll);
+                            m_baseDate.date_year = date.year;
+                            m_baseDate.date_month = date.month;
+                            m_baseDate.date_day = date.day;
+                            m_baseDate.datePoint.resize(30);
+                            int out = std::snprintf(&m_baseDate.datePoint[0], 30,
+                                        "%04d-%02d-%02d",
+                                        date.year,
+                                        date.month,
+                                        date.day);
+                            m_baseDate.datePoint.resize((size_t)out);
+                            continue;
+                        }
+                        if(rowl == 1 && coll == 1)
+                            continue;//Тут ничего интересного...
+                        if(rowl == 1 && coll == 2)
+                        {
+                            //Значение чётности на конкретную дату
+                            m_baseDate.couple = cellstr;
+                            // Прервать сканирование листа и продолжить чтение других данных
+                            // Всё, мы нашли что хотели, валим с этого листа дальше...
+                            rowl = lastRow + 1;
+                            break;
+                        }
+                        continue;
+                    }// ==== Лист развёрнутого расписания ====
+
+
+                    //====== Далее "Неделя" и "подгруппы" ======
+
                     if((coll == 0) && !cellstr.empty()) //номер пары
                     {
                         double dd = xl->getDoubleCell(rowl, coll);
                         m_cache.number = dd != 0.0 ? std::to_string((int32_t)dd) : cellstr;
-                        LectionNumber = true;
+                        gotLectionNumber = true;
                     }
 
                     if(coll == 1)  //чётность
@@ -386,18 +481,18 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
                         if(!cellstr.empty())
                         {
                             m_cache.week_couple = cellstr;
-                            LectionNumber = false;
+                            gotLectionNumber = false;
                         }
-                        else if(LectionNumber)
+                        else if(gotLectionNumber)
                         {
                             m_cache.week_couple = "";
-                            LectionNumber = false;
+                            gotLectionNumber = false;
                         }
                     }
 
                     if((coll == 2) && !cellstr.empty())//данные
                     {
-                        if(rowof == 0)
+                        if(entryRow == 0)
                         {
                             m_cache.disciplyne_name = cellstr;
                             #ifdef ENABLE_LEGACY_COURATOR_HOUR
@@ -417,7 +512,7 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
                             #endif
                         }
 
-                        if(rowof == 1)
+                        if(entryRow == 1)
                         {
                             #ifdef ENABLE_LEGACY_COURATOR_HOUR
                             if(!legacy_hour_courator)
@@ -426,9 +521,9 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
                         }
 
                         #ifdef ENABLE_LEGACY_COURATOR_HOUR
-                        if(rowof == 2 && !legacy_hour_courator)
+                        if(entryRow == 2 && !legacy_hour_courator)
                         #else
-                        if(rowof == 2)
+                        if(entryRow == 2)
                         #endif
                         {
                             m_cache.date_condition = cellstr;
@@ -436,16 +531,16 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
                             commitCache();
                         }
 
-                        if(rowof != 2)
-                            rowof++;
+                        if(entryRow != 2)
+                            entryRow++;
                         else
-                            rowof = 0;
+                            entryRow = 0;
                     }
                     else
                     //Если обнаружено пустое поле с датой, пропустить эту запись
-                    if(cellstr.empty() && (coll == 2) && (rowof == 2))
+                    if(cellstr.empty() && (coll == 2) && (entryRow == 2))
                     {
-                        rowof = 0;
+                        entryRow = 0;
                     }
 
                     if((coll == 4) && !cellstr.empty())
@@ -470,7 +565,7 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
                                 m_cache.lector_name = tmp + "," + cellstr.substr(0, i);
                                 //Если собран полный набор данных - записываем в базу!
                                 commitCache();
-                                rowof = 0;
+                                entryRow = 0;
                             }
                             #endif
                         }
@@ -489,6 +584,7 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
     } else {
         std::fprintf(stderr, "WARNING: Can't open %s file!\n", path.c_str());
         std::fflush(stderr);
+        m_isInvalid = true;
         return false;
     }
 
@@ -496,9 +592,42 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
 invalidFormat:
     m_errorsList.push_back("WARNING: Error while parsing file!");
     std::fprintf(stderr, "WARNING: Error while parsing %s file! (%s)\n", path.c_str(), errorInfo.c_str());
-    std::fflush(stdout);
+    std::fflush(stderr);
+    m_isInvalid = true;
     return false;
 #endif
+}
+
+bool ScheduleFile::isValid() const
+{
+    return !m_isInvalid;
+}
+
+std::string ScheduleFile::filePath() const
+{
+    return m_orig_file;
+}
+
+std::string ScheduleFile::fileName() const
+{
+    std::string n = m_orig_file;
+    char * bname = basename(&n[0]);
+    return std::string(bname);
+}
+
+const std::vector<std::string> &ScheduleFile::errorsList() const
+{
+    return m_errorsList;
+}
+
+const ScheduleFile::BaseDate &ScheduleFile::baseDate() const
+{
+    return m_baseDate;
+}
+
+const std::vector<ScheduleFile::OneDayData_Src> &ScheduleFile::entries() const
+{
+    return m_capturedEntries;
 }
 
 bool ScheduleFile::commitCache()
@@ -511,26 +640,26 @@ bool ScheduleFile::commitCache()
     if((tmp.lector_name.find(',') == std::string::npos) || (l_and_r.size() > 2))
     {
         std::fprintf(stderr, "WARNING: Подозрительное значение преподавателя [%s]!\n", tmp.lector_name.c_str());
-        std::fflush(stdout);
+        std::fflush(stderr);
         return false;
     }
     tmp.lector_name = Strings::trim(l_and_r[0]);
     tmp.lector_rank = Strings::trim(l_and_r.size() == 2 ? l_and_r[1] : "");
 
-    if(tmp.disciplyne_name.find("Иностранный язык") == std::string::npos)
+    if((tmp.subgroup >= 0) && (tmp.disciplyne_name.find("Иностранный язык") == std::string::npos))
     {
         //Добавить 2 к значению лабораторной подгруппы
         tmp.subgroup += 2;
     }
 
-    // Проверить правильность формата дат
+    // Проверить правильность формата условных дат
     if(!tmp.date_condition.empty())
     {
         bool is_valid = false;
-        static std::regex onlyday("только (\\d{1,2}\\.\\d{1,2}\\;?)+$");
-        static std::regex except("кроме (\\d\\d\\.\\d\\d\\;?)+$");
-        static std::regex range("с \\d\\d\\.\\d\\d\\ по \\d\\d\\.\\d\\d$");
-        static std::regex range_exc("с \\d\\d\\.\\d\\d\\ по \\d\\d\\.\\d\\d\\ +кроме (\\d\\d\\.\\d\\d\\;?)+");
+        static const std::regex onlyday(u8"только (\\d{1,2}\\.\\d{1,2}\\;?)+$");
+        static const std::regex except(u8"кроме (\\d\\d\\.\\d\\d\\;?)+$");
+        static const std::regex range(u8"с \\d\\d\\.\\d\\d\\ по \\d\\d\\.\\d\\d$");
+        static const std::regex range_exc(u8"с \\d\\d\\.\\d\\d\\ по \\d\\d\\.\\d\\d\\ +кроме (\\d\\d\\.\\d\\d\\;?)+");
         is_valid |= std::regex_match(tmp.date_condition, onlyday);
         is_valid |= std::regex_match(tmp.date_condition, except);
         is_valid |= std::regex_match(tmp.date_condition, range_exc);
@@ -539,7 +668,7 @@ bool ScheduleFile::commitCache()
         {
             m_errorsList.push_back("WARNING: Подозрительное значение условной даты [" + tmp.date_condition + "]!");
             std::fprintf(stderr, "WARNING: Подозрительное значение условной даты [%s]!\n", tmp.date_condition.c_str());
-            std::fflush(stdout);
+            std::fflush(stderr);
             return false;
         }
     }
@@ -548,13 +677,19 @@ bool ScheduleFile::commitCache()
     {
         m_errorsList.push_back("WARNING: Отсутствует номер занятия!");
         std::fprintf(stderr, "WARNING: Отсутствует номер занятия!\n");
-        std::fflush(stdout);
-        is_invalid = true;
+        std::fflush(stderr);
+        m_isInvalid = true;
         return false;
     } else {
-        static std::regex numeric("^[\\d]+$");
+        static const std::regex numeric("^[\\d]+$");
         if(!std::regex_match(tmp.number, numeric))
+        {
+            m_errorsList.push_back("WARNING: Номер занятия имеет несловой вид! [" + tmp.number + "]");
+            std::fprintf(stderr, "WARNING: Номер занятия имеет несловой вид! [%s]\n", tmp.number.c_str());
+            std::fflush(stdout);
+            m_isInvalid = true;
             return false;
+        }
     }
 
 
@@ -562,8 +697,8 @@ bool ScheduleFile::commitCache()
     {
         m_errorsList.push_back("WARNING: Отсутствует день недели!");
         std::fprintf(stderr, "WARNING: Отсутствует день недели!\n");
-        std::fflush(stdout);
-        is_invalid = true;
+        std::fflush(stderr);
+        m_isInvalid = true;
         return false;
     } else {
         static std::regex numeric("^[\\d]+$");
@@ -575,8 +710,8 @@ bool ScheduleFile::commitCache()
     {
         m_errorsList.push_back("WARNING: Неверное значение чётности [" + tmp.week_couple + "]!");
         std::fprintf(stderr, "WARNING: Неверное значение чётности [%s]!\n", tmp.week_couple.c_str());
-        std::fflush(stdout);
-        is_invalid = true;
+        std::fflush(stderr);
+        m_isInvalid = true;
         return false;
     }
 

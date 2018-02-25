@@ -11,6 +11,14 @@ public:
     virtual ~ScheduleFile();
 
     bool loadFromExcel(const std::string &path);
+    struct BaseDate
+    {
+        std::string datePoint;
+        int date_year   = -1;
+        int date_month  = -1;
+        int date_day    = -1;
+        std::string couple;
+    };
     struct OneDayData_Src
     {
         //! День недели
@@ -37,7 +45,7 @@ public:
         std::string date_condition;
 
         //! Подгруппа
-        int subgroup = 0;
+        int subgroup = -1;
 
         void clean()
         {
@@ -50,17 +58,35 @@ public:
             lector_rank.clear();
             room_name.clear();
             date_condition.clear();
-            subgroup = 0;
+            subgroup = -1;
         }
     };
 
-    std::string         m_orig_file;
-    OneDayData_Src      m_cache;
+    bool isValid() const;
+    std::string filePath() const;
+    std::string fileName() const;
+    const std::vector<std::string> &errorsList() const;
+    const BaseDate &baseDate() const;
+    const std::vector<OneDayData_Src> &entries() const;
 
-    bool commitCache();
+private:
+
+    //! Путь к исходному файлу
+    std::string                 m_orig_file;
+    //! Кэш-запись, копит собранные данные полей перед отправкой снимка в общий список
+    OneDayData_Src              m_cache;
+    //! Базовый год расписания
+    int                         m_baseYear;
+    //! Базовая дата
+    BaseDate                    m_baseDate;
+    //! Список собранных записей
     std::vector<OneDayData_Src> m_capturedEntries;
-    bool is_invalid = false;
-    std::vector<std::string> m_errorsList;
+    //! Была ли обнаружена ошибка при считвании или проверки данных
+    bool                        m_isInvalid = false;
+    //! Список ошибок
+    std::vector<std::string>    m_errorsList;
+    //! Проверить кэш и отправить кэш-запись в массив
+    bool commitCache();
 };
 
 #endif // SCHEDULE_FILE_H
