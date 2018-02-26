@@ -36,8 +36,8 @@ ExternalProject_Add(xlnt_external
 add_executable(${PROJECT_NAME}
     src/studga-xls2db.cpp
     src/schedule_file.cpp
-    src/data_base.cpp
     src/schedule_manager.cpp
+    src/db/data_base.cpp
     src/Utils/strings.cpp
     src/Utils/files.cpp
     ${DIRMANAGER_SRCS}
