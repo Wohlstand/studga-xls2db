@@ -17,13 +17,13 @@ function d_pause()
 
 function doDbQuery($query)
 {
-    return mysql_query($query);
+    return mysqlold_query($query);
 }
 
 function getField($query, $field)
 {
     $q = doDbQuery($query);
-    $arr = mysql_fetch_array($q);
+    $arr = mysqlold_fetch_array($q);
     if(!$arr)
     {
         echo "!!!getField: Query results no fields: [$query]\n";
@@ -390,7 +390,7 @@ function CheckData($cell, $coll, $FileName, $is_sbgrp=0, $sbgrp=NULL)
 		if($rowof == 0)
 		{
 	        $lection_ttl = $cell;
-	        if(strstr($lection_ttl, "Час наставника"))
+	        if(strstr($lection_ttl, "Час наставника") && (trim($lection_ttl) != "Час наставника"))
 	        {
 		        $hour_courator = 1;
 		        $l_type = "Час наставника";
@@ -416,7 +416,6 @@ function CheckData($cell, $coll, $FileName, $is_sbgrp=0, $sbgrp=NULL)
             if($RejectedFile)
                 return -1;
 		}
-
 		if($rowof != 2)
             $rowof++;
         else
@@ -748,8 +747,8 @@ function DoOut($FileName, $is_sbgrp=0, $sbgrp=NULL)
 	//$cabinet
 	//schedule_rooms
 
-    if(mysql_error() != "")
-        die(mysql_error());
+    if(mysqlold_error() != "")
+        die(mysqlold_error());
 
     if($DebugEnable)
     {
@@ -757,14 +756,14 @@ function DoOut($FileName, $is_sbgrp=0, $sbgrp=NULL)
 
         if($warningCountResult)
         {
-            $warningCount = mysql_fetch_row($warningCountResult);
+            $warningCount = mysqlold_fetch_row($warningCountResult);
             if($warningCount[0] > 0)
             {
                 //Have warnings
                 $warningDetailResult = doDbQuery("SHOW WARNINGS");
                 if($warningDetailResult)
                 {
-                    while($warning = mysql_fetch_assoc(warningDetailResult))
+                    while($warning = mysqlold_fetch_assoc(warningDetailResult))
                     {
                         //Process it
                     }
@@ -932,7 +931,7 @@ function DoOptimaseIdNumbers($tableName, $IDField = 'id')
     	$MaxN = getField("SELECT MAX(`".$IDField."`) FROM `".$tableName."` LIMIT 1;", 0);
     	$Counter = 1;
     	$Table_q = doDbQuery($query);
-    	while(($Table = mysql_fetch_array($Table_q))!=NULL)
+    	while(($Table = mysqlold_fetch_array($Table_q))!=NULL)
 		{
     		if($Table[$IDField] != $Counter)
 			{
