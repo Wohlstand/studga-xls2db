@@ -22,6 +22,19 @@ SET(SD_DIR_BAD "invalid" CACHE STRING "Имя папки кэша отклонё
 message("== Root directory is ${SD_ROOTDIR}")
 
 include(ExternalProject)
+
+ExternalProject_Add(
+    libxls_local
+    PREFIX ${CMAKE_BINARY_DIR}/external/libxls
+    URL ${CMAKE_SOURCE_DIR}/deps/libxls-1.4.0.tar.gz
+    UPDATE_COMMAND ""
+    BUILD_IN_SOURCE 1
+    CONFIGURE_COMMAND "${CMAKE_BINARY_DIR}/external/libxls/libXLS-src/configure" --prefix=${CMAKE_BINARY_DIR}
+    SOURCE_DIR ${CMAKE_BINARY_DIR}/external/libxls/libXLS-src
+    BUILD_COMMAND "make" -s -j 4
+    INSTALL_COMMAND "make" -s install
+)
+
 ExternalProject_Add(xlnt_external
     GIT_REPOSITORY    "https://github.com/tfussell/xlnt.git"
     GIT_TAG           "master"
@@ -49,7 +62,10 @@ target_compile_definitions(${PROJECT_NAME}
     -DDIR_EXCELS_LOADED_CACHE="${SD_DIR_GOOD}"
     -DDIR_EXCELS_INVALID_CACHE="${SD_DIR_BAD}"
 )
-add_dependencies(${PROJECT_NAME} xlnt_external)
+add_dependencies(${PROJECT_NAME}
+    libxls_local
+    xlnt_external
+)
 target_link_libraries(${PROJECT_NAME}
     xlsreader
     xlnt$<$<CONFIG:Debug>:d>
