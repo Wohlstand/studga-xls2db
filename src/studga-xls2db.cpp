@@ -52,6 +52,7 @@ public:
                          "Не могу открыть файл отчёта '%s' для добавления!\n",
                          logFile.c_str());
             std::fflush(stderr);
+            exit(3);
         }
     }
     ~Logger()
@@ -127,7 +128,7 @@ int main()
         //! Были ли попытки
         bool db_changed = false;
         ScheduleManager manager;
-        Logger log(DIR_EXCELS_ROOT "/CheckDB_LOG.txt");
+        Logger log(SD_LOG_FILE_PATH);
 
         std::fprintf(log.f, "---------------------------------------------------------------\n");
         {
