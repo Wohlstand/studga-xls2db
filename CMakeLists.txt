@@ -14,6 +14,13 @@ link_directories(
     "${CMAKE_BINARY_DIR}/lib"
 )
 
+SET(SD_ROOTDIR "/home/vitaly/Документы/StudGA" CACHE STRING "Путь к папке-хранилище Excel-файлов")
+SET(SD_DIR_NEW "new" CACHE STRING "Имя папки кэша ново-загруженных файлов")
+SET(SD_DIR_GOOD "loaded" CACHE STRING "Имя папки кэша файлов, успешно считанных в базу данных")
+SET(SD_DIR_BAD "invalid" CACHE STRING "Имя папки кэша отклонённых файлов для считывания в базу данных")
+
+message("== Root directory is ${SD_ROOTDIR}")
+
 include(ExternalProject)
 ExternalProject_Add(xlnt_external
     GIT_REPOSITORY    "https://github.com/tfussell/xlnt.git"
@@ -37,10 +44,10 @@ add_executable(${PROJECT_NAME}
 )
 target_compile_definitions(${PROJECT_NAME}
     PUBLIC
-    -DDIR_EXCELS_ROOT="/home/vitaly/Документы/StudGA"
-    -DDIR_EXCELS_NEW_CACHE="new"
-    -DDIR_EXCELS_LOADED_CACHE="loaded"
-    -DDIR_EXCELS_INVALID_CACHE="invalid"
+    -DDIR_EXCELS_ROOT="${SD_ROOTDIR}"
+    -DDIR_EXCELS_NEW_CACHE="${SD_DIR_NEW}"
+    -DDIR_EXCELS_LOADED_CACHE="${SD_DIR_GOOD}"
+    -DDIR_EXCELS_INVALID_CACHE="${SD_DIR_BAD}"
 )
 add_dependencies(${PROJECT_NAME} xlnt_external)
 target_link_libraries(${PROJECT_NAME}
