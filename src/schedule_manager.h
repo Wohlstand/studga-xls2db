@@ -13,6 +13,7 @@ class ScheduleManager
 {
     DataBase m_db;
     std::string m_errorString;
+    bool m_scheduleLockIsActive = false;
 public:
     ScheduleManager();
     ~ScheduleManager();

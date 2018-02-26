@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 project(studga-xls2db CXX)
 
-include(DirManager/dirman.cmake)
+include(src/DirManager/dirman.cmake)
 
 include_directories(
     "/usr/local/libxls/include"
@@ -27,13 +27,20 @@ ExternalProject_Add(xlnt_external
 )
 
 add_executable(${PROJECT_NAME}
-    studga-xls2db.cpp
-    schedule_file.cpp
-    strings.cpp
-    data_base.cpp
-    schedule_manager.cpp
-    files.cpp
+    src/studga-xls2db.cpp
+    src/schedule_file.cpp
+    src/data_base.cpp
+    src/schedule_manager.cpp
+    src/Utils/strings.cpp
+    src/Utils/files.cpp
     ${DIRMANAGER_SRCS}
+)
+target_compile_definitions(${PROJECT_NAME}
+    PUBLIC
+    -DDIR_EXCELS_ROOT="/home/vitaly/Документы/StudGA"
+    -DDIR_EXCELS_NEW_CACHE="new"
+    -DDIR_EXCELS_LOADED_CACHE="loaded"
+    -DDIR_EXCELS_INVALID_CACHE="invalid"
 )
 add_dependencies(${PROJECT_NAME} xlnt_external)
 target_link_libraries(${PROJECT_NAME}
@@ -43,3 +50,4 @@ target_link_libraries(${PROJECT_NAME}
     ssl
     crypto
 )
+

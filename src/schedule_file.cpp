@@ -2,10 +2,12 @@
 #include <xls.h>            //For Excel 97-2003
 #include <xlnt/xlnt.hpp>    //For Excel 2007+
 #include <cstdio>
+#include <cstring>
 #include <ctime>
 #include <unordered_map>
 #include <regex>
-#include "strings.h"
+#include "Utils/strings.h"
+#include "Utils/files.h"
 
 /**
  * @brief База для XLS и XLSX парсеров
@@ -77,7 +79,7 @@ public:
         }
         fclose(f);
 
-        if(memcmp(buff, xls_magic, 8) == 0)
+        if(std::memcmp(buff, xls_magic, 8) == 0)
             return true;
 
         return false;
@@ -244,7 +246,7 @@ public:
 
         for(int i = 0; i < 3; i++)
         {
-            if(memcmp(buff, xlsx_magic[i], 4) == 0)
+            if(std::memcmp(buff, xlsx_magic[i], 4) == 0)
                 return true;
         }
 
@@ -318,7 +320,11 @@ public:
         if(cell.is_date())
         {
             xlnt::date dt = cell.value<xlnt::date>();
-            return {dt.year, dt.month, dt.day};
+            Date d;
+            d.year = dt.year;
+            d.month = dt.month;
+            d.day = dt.day;
+            return d;
         }
         return Date();
     }
@@ -610,9 +616,7 @@ std::string ScheduleFile::filePath() const
 
 std::string ScheduleFile::fileName() const
 {
-    std::string n = m_orig_file;
-    char * bname = basename(&n[0]);
-    return std::string(bname);
+    return Files::basename(m_orig_file);
 }
 
 const std::vector<std::string> &ScheduleFile::errorsList() const

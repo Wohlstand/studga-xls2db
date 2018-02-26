@@ -5,8 +5,9 @@
 #include <fcntl.h>
 
 #include <stdio.h>
+#include <cstring>
 #include <dirman.h>
-#include "files.h"
+#include "Utils/files.h"
 #include "schedule_file.h"
 #include "schedule_manager.h"
 
@@ -17,31 +18,41 @@ static size_t get_size_by_fd(int fd) {
     return (size_t)statbuf.st_size;
 }
 
-std::string file_md5sum(const std::string &path)
+bool file_md5sum(const std::string &path, unsigned char *result)
 {
     int file_descript;
     size_t file_size;
     char* file_buffer;
-    unsigned char result[MD5_DIGEST_LENGTH];
-    char result_str[MD5_DIGEST_LENGTH * 2 + 1];
     file_descript = open(path.c_str(), O_RDONLY);
     if(file_descript < 0)
-        return "<none>";
+        return false;
     file_size = get_size_by_fd(file_descript);
 
     file_buffer = (char*)mmap(0, file_size, PROT_READ, MAP_SHARED, file_descript, 0);
     MD5((unsigned char*) file_buffer, file_size, result);
     munmap(file_buffer, file_size);
-    for(int i=0; i < MD5_DIGEST_LENGTH; i++) {
-        std::sprintf(&result_str[i*2], "%02x", result[i]);
-    }
-    return std::string(result_str);
+    return true;
+}
+
+bool sameFiles(const std::string &file1, const std::string &file2)
+{
+    unsigned char result1[MD5_DIGEST_LENGTH];
+    unsigned char result2[MD5_DIGEST_LENGTH];
+    if(!Files::fileExists(file1))
+        return false;
+    if(!Files::fileExists(file2))
+        return false;
+    if(!file_md5sum(file1, result1))
+        return false;
+    if(!file_md5sum(file2, result2))
+        return false;
+    return std::memcmp(result1, result2, MD5_DIGEST_LENGTH) == 0;
 }
 
 int main()
 {
     DirMan dir;
-    dir.setPath("/home/vitaly/Документы/StudGA");
+    dir.setPath(DIR_EXCELS_ROOT "/" DIR_EXCELS_NEW_CACHE);
     std::vector<std::string> filters;
     filters.push_back(".xls");
 
@@ -52,11 +63,22 @@ int main()
         if(manager.connectDataBase())
         {
             // Заблокировать расписание для просмотра
-            manager.lockSchedule();
+            if(!manager.lockSchedule())
+            {
+                std::fprintf(stderr, "\n");
+                std::fprintf(stderr, "===============================================================================\n");
+                std::fprintf(stderr, "ОШИБКА БЛОКИРОВКИ %s\n", manager.errorString().c_str());
+                std::fprintf(stderr, "===============================================================================\n");
+                std::fflush(stderr);
+                return 1;
+            }
 
             std::vector<std::string> fileList;
-            dir.mkdir("loaded");
-            dir.mkdir("invalid");
+            DirMan::mkAbsDir(DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE);
+            DirMan::mkAbsDir(DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE);
+            chmod((DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE), 0755);
+            chmod((DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE), 0755);
+
             curPath = dir.absolutePath();
             size_t files_counter = 1;
             if(dir.getListOfFiles(fileList, filters))
@@ -75,11 +97,10 @@ int main()
                     std::fflush(stdout);
                     files_counter++;
 
-                    if(  (Files::fileExists(curPath + "/loaded/" + file) &&
-                        (file_md5sum(curPath + "/" + file) == file_md5sum(curPath + "/loaded/" + file)) ) ||
-                         (Files::fileExists(curPath + "/invalid/" + file) &&
-                        (file_md5sum(curPath + "/" + file) == file_md5sum(curPath + "/invalid/" + file)) )
-                    )
+                    if(sameFiles(curPath + "/" + file,
+                                 DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file) ||
+                       sameFiles(curPath + "/" + file,
+                                 DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file) )
                     {
                         std::fprintf(stdout, "База данных актуальна, обновление не требуется\n");
                         std::fprintf(stdout, "===============================================================================\n");
@@ -101,10 +122,12 @@ int main()
                             //std::fprintf(stderr, "Файл %s содержит ошибочные данные!\n", (curPath + "/" + file).c_str());
                             std::fflush(stderr);
 
-                            Files::copyFile(curPath + "/invalid/" + file, curPath + "/" + file, true);
+                            Files::copyFile(DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file,
+                                            curPath + "/" + file, true);
                             std::fprintf(stderr, "===============================================================================\n");
-                            std::fprintf(stderr, "Файл помещён в %s\n", (curPath + "/invalid/" + file).c_str());
+                            std::fprintf(stderr, "Файл помещён в %s\n", (DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file).c_str());
                             std::fflush(stderr);
+                            chmod((DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file).c_str(), 0644);
                         }
                         else
                         {
@@ -114,10 +137,12 @@ int main()
                             std::fprintf(stdout, "===============================================================================\n");
                             std::fflush(stdout);
 
-                            Files::copyFile(curPath + "/loaded/" + file, curPath + "/" + file, true);
+                            Files::copyFile(DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file,
+                                            curPath + "/" + file, true);
                             std::fprintf(stdout, "===============================================================================\n");
-                            std::fprintf(stdout, "Файл помещён в %s\n", (curPath + "/loaded/" + file).c_str());
+                            std::fprintf(stdout, "Файл помещён в %s\n", (DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file).c_str());
                             std::fflush(stdout);
+                            chmod((DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file).c_str(), 0644);
                         }
                         std::fprintf(stdout, "\n");
                         std::fflush(stdout);

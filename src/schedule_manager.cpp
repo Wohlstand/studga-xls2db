@@ -1,6 +1,6 @@
 #include "schedule_manager.h"
-#include "db_login.h"
-#include "strings.h"
+#include "../db_login.h"
+#include "Utils/strings.h"
 #include <libgen.h>
 #include <chrono>
 #include <regex>
@@ -110,11 +110,49 @@ bool ScheduleManager::passScheduleFile(ScheduleFile &file)
 
 bool ScheduleManager::lockSchedule()
 {
+    if(m_scheduleLockIsActive)
+        return true;
+    std::ostringstream q;
+    q << "UPDATE `schedule_flows` ";
+    q << "SET ";
+    q << "is_updating=1;";
+
+    if(!m_db.query(q.str()))
+    {
+        std::fprintf(stderr, "DBERROR: (Включение блокировки) %s\n",
+                     m_db.error().c_str());
+        std::fflush(stderr);
+        return false;
+    }
+
+    std::fprintf(stdout, "==DBWRITE: Установлена общая блокировка\n");
+    std::fflush(stdout);
+    m_scheduleLockIsActive = true;
+
     return true;
 }
 
 bool ScheduleManager::unlockSchedule()
 {
+    if(!m_scheduleLockIsActive)
+        return true;
+    std::ostringstream q;
+    q << "UPDATE `schedule_flows` ";
+    q << "SET ";
+    q << "is_updating=0;";
+
+    if(!m_db.query(q.str()))
+    {
+        std::fprintf(stderr, "DBERROR: (Отключение блокировки) %s\n",
+                     m_db.error().c_str());
+        std::fflush(stderr);
+        return false;
+    }
+
+    std::fprintf(stdout, "==DBWRITE: Снята общая блокировка\n");
+    std::fflush(stdout);
+    m_scheduleLockIsActive = false;
+
     return true;
 }
 
@@ -735,6 +773,22 @@ bool ScheduleManager::writeToDb(std::vector<ScheduleManager::ExInfo> &inout_list
 
     std::fprintf(stdout, "==DBWRITE: Новая таблица для потока %d и группы %d успешно записана!\n", out_flow.db_id, out_flow.group);
     std::fflush(stdout);
+
+    {
+        std::ostringstream dm;
+        dm << "UPDATE `schedule_flows` ";
+        dm << "SET ";
+        dm << "`latest_upd`=CURRENT_TIMESTAMP() ";
+        dm << "WHERE `id_flow`=" << out_flow.db_id << ";";
+
+        if(!m_db.query(dm.str()))
+        {
+            std::fprintf(stderr, "DBERROR: (Установка времени обновления расписания потоку) %s\n",
+                         m_db.error().c_str());
+            std::fflush(stderr);
+            return false;
+        }
+    }
 
     return true;
 }
