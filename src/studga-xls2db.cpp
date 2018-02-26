@@ -216,7 +216,7 @@ int main()
                             std::fprintf(log.f, " %s\n", manager.errorString().c_str());
                             std::fprintf(log.f, "*************\n");
                             std::fprintf(log.f, "Всего прочитано строк: %lu\n", schedule.entries().size());
-                            std::fprintf(log.f, "==============n");
+                            std::fprintf(log.f, "=============\n");
                             std::fflush(log.f);
                         }
                         else
@@ -238,7 +238,7 @@ int main()
                             std::fprintf(log.f, " %s\n", schedule.fileName().c_str());
                             std::fprintf(log.f, "-------------\n");
                             std::fprintf(log.f, "Всего прочитано строк: %lu\n", schedule.entries().size());
-                            std::fprintf(log.f, "==============n");
+                            std::fprintf(log.f, "=============\n");
                             std::fflush(log.f);
                         }//pass file
                         std::fprintf(stdout, "\n");
@@ -254,7 +254,7 @@ int main()
                             std::fprintf(log.f, " %s\n", e.c_str());
                         std::fprintf(log.f, "*************\n");
                         std::fprintf(log.f, "Всего прочитано строк: %lu\n", schedule.entries().size());
-                        std::fprintf(log.f, "==============n");
+                        std::fprintf(log.f, "=============\n");
                         std::fflush(log.f);
                     }
                 }//
