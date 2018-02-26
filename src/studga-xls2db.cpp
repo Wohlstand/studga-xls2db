@@ -44,6 +44,13 @@ public:
     Logger(const std::string &logFile)
     {
         f = std::fopen(logFile.c_str(), "a");
+        if(!f)
+        {
+            std::fprintf(stderr,
+                         "Can't open log file %s for append!\n",
+                         logFile.c_str());
+            std::fflush(stderr);
+        }
     }
     ~Logger()
     {
