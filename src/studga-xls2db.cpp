@@ -43,11 +43,13 @@ public:
     FILE *f = NULL;
     Logger(const std::string &logFile)
     {
+        std::fprintf(stdout, "Файл отчёта: %s.\n", logFile.c_str());
+        std::fflush(stdout);
         f = std::fopen(logFile.c_str(), "a");
         if(!f)
         {
             std::fprintf(stderr,
-                         "Can't open log file %s for append!\n",
+                         "Не могу открыть файл отчёта '%s' для добавления!\n",
                          logFile.c_str());
             std::fflush(stderr);
         }
