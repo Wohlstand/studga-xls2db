@@ -115,10 +115,6 @@ int main()
 
                 for(std::string &file : fileList)
                 {
-                    std::fprintf(stdout, "\n\n===============================================================================\n");
-                    std::fprintf(stdout, "Обработка файла %lu из %lu\n", files_counter, fileList.size());
-                    std::fprintf(stdout, "===============================================================================\n");
-                    std::fflush(stdout);
                     files_counter++;
 
                     if(sameFiles(curPath + "/" + file,
@@ -126,15 +122,17 @@ int main()
                        sameFiles(curPath + "/" + file,
                                  DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file) )
                     {
-                        std::fprintf(stdout, "База данных актуальна, обновление не требуется\n");
-                        std::fprintf(stdout, "===============================================================================\n");
-                        std::fflush(stdout);
+                        // Пропустить файл, который уже числится в базе данных и ничего не сказать об этом
                         continue;
                     }
 
                     ScheduleFile schedule;
                     if(schedule.loadFromExcel(curPath + "/" + file))
                     {
+                        std::fprintf(stdout, "\n\n===============================================================================\n");
+                        std::fprintf(stdout, "Обработка файла %lu из %lu\n", files_counter, fileList.size());
+                        std::fprintf(stdout, "===============================================================================\n");
+                        std::fflush(stdout);
                         if(!manager.passScheduleFile(schedule))
                         {
                             std::fprintf(stderr, "\n");
