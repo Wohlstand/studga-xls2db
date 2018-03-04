@@ -614,7 +614,7 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
         return true;
     } else {
         std::ostringstream errOut;
-        errOut << "WARNING: Невозможно открыть фалй " << path << "!\n";
+        errOut << "WARNING: Невозможно открыть файл " << path << "!\n";
         addError(errOut.str());
         m_isInvalid = true;
         return false;
