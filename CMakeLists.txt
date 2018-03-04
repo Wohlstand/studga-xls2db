@@ -46,6 +46,18 @@ ExternalProject_Add(xlnt_external
         "-DSTATIC=ON"
 )
 
+ExternalProject_Add(smtpclient_external
+    GIT_REPOSITORY    "https://github.com/Wohlstand/libSMTPClient.git"
+    GIT_TAG           "master"
+    SOURCE_DIR        "${CMAKE_BINARY_DIR}/smtpclient-src"
+    BINARY_DIR        "${CMAKE_BINARY_DIR}/smtpclient-build"
+    CMAKE_ARGS
+        "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+        "-DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}"
+        "-DSMTP_CLIENT_STATIC=ON"
+        "-DSMTP_CLIENT_SHARED=OFF"
+)
+
 add_executable(${PROJECT_NAME}
     src/studga-xls2db.cpp
     src/schedule_file.cpp
@@ -65,6 +77,7 @@ target_compile_definitions(${PROJECT_NAME}
 add_dependencies(${PROJECT_NAME}
     libxls_local
     xlnt_external
+    smtpclient_external
 )
 target_link_libraries(${PROJECT_NAME}
     xlsreader
