@@ -900,26 +900,26 @@ bool ScheduleManager::optimizeMainTable()
             std::vector<unsigned long long> qu_ids_in;
             int limitter = 500;
 
+            static const char* strs[4] =
+            {
+                ".   ", "..  ", "... ", "...."
+            };
+
             while(m_db.fetchRow(row))
             {
                 id = std::stoull(row["id"].c_str(), NULL, 10);
                 qu_ids_in.push_back(id);
                 if(limitter <= 0)
                 {
+                    std::fprintf(stdout, "(totally %llu) %llu%s\r", total, counter, strs[counter % 4]);
+                    std::fflush(stdout);
+
                     if(!optimizeMainTable_Commit(m_db, qu_ids_in, counter))
                         goto dberror_is_here;
                     limitter = 500;
                     qu_ids_in.clear();
                 } else
                     limitter--;
-
-                static const char* strs[4] =
-                {
-                    ".   ", "..  ", "... ", "...."
-                };
-
-                std::fprintf(stdout, "(totally %llu) %llu%s\r", total, counter, strs[counter % 4]);
-                std::fflush(stdout);
             }
 
             if(limitter > 0)
