@@ -28,12 +28,39 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#include <stdio.h>
+#include <cstdio>
 #include <cstring>
+#include <ctime>
+#include <chrono>
 #include <dirman.h>
 #include "Utils/files.h"
 #include "schedule_file.h"
 #include "schedule_manager.h"
+
+class Logger
+{
+public:
+    FILE *f = NULL;
+    Logger(const std::string &logFile)
+    {
+        std::fprintf(stdout, "Файл отчёта: %s.\n", logFile.c_str());
+        std::fflush(stdout);
+        f = std::fopen(logFile.c_str(), "a");
+        if(!f)
+        {
+            std::fprintf(stderr,
+                         "Не могу открыть файл отчёта '%s' для добавления!\n",
+                         logFile.c_str());
+            std::fflush(stderr);
+            exit(3);
+        }
+    }
+    ~Logger()
+    {
+        if(f)
+            std::fclose(f);
+    }
+};
 
 // Get the size of the file by its file descriptor
 static size_t get_size_by_fd(int fd) {
@@ -73,8 +100,25 @@ bool sameFiles(const std::string &file1, const std::string &file2)
     return std::memcmp(result1, result2, MD5_DIGEST_LENGTH) == 0;
 }
 
+bool lockManager(ScheduleManager &manager)
+{
+    if(!manager.lockSchedule())
+    {
+        std::fprintf(stderr, "\n");
+        std::fprintf(stderr, "===============================================================================\n");
+        std::fprintf(stderr, "ОШИБКА БЛОКИРОВКИ %s\n", manager.errorString().c_str());
+        std::fprintf(stderr, "===============================================================================\n");
+        std::fflush(stderr);
+        return false;
+    }
+    return true;
+}
+
+
 int main()
 {
+    //! Были ли попытки изменить базу данных
+    bool db_changed = false;
     DirMan dir;
     dir.setPath(DIR_EXCELS_ROOT "/" DIR_EXCELS_NEW_CACHE);
     std::vector<std::string> filters;
@@ -84,19 +128,22 @@ int main()
     {
         std::string curPath;
         ScheduleManager manager;
+        Logger log(SD_LOG_FILE_PATH);
+
+        std::fprintf(log.f, "---------------------------------------------------------------\n");
+        {
+            char timeBuffer[50];
+            typedef std::chrono::system_clock Clock;
+            auto now = Clock::now();
+            std::time_t now_c = Clock::to_time_t(now);
+            struct tm *parts = std::localtime(&now_c);
+            std::strftime(timeBuffer, 50,"%Y-%m-%d %H:%M:%S", parts);
+            std::fprintf(log.f, "Сортировщик запускался %s\n", timeBuffer);
+        }
+        std::fflush(log.f);
+
         if(manager.connectDataBase())
         {
-            // Заблокировать расписание для просмотра
-            if(!manager.lockSchedule())
-            {
-                std::fprintf(stderr, "\n");
-                std::fprintf(stderr, "===============================================================================\n");
-                std::fprintf(stderr, "ОШИБКА БЛОКИРОВКИ %s\n", manager.errorString().c_str());
-                std::fprintf(stderr, "===============================================================================\n");
-                std::fflush(stderr);
-                return 1;
-            }
-
             std::vector<std::string> fileList;
             DirMan::mkAbsDir(DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE);
             DirMan::mkAbsDir(DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE);
@@ -112,6 +159,9 @@ int main()
                 std::fprintf(stdout, "===============================================================================\n");
                 std::fprintf(stdout, "Будет произведена проверка и считывание файлов с общим количеством: %lu\n", fileList.size());
                 std::fprintf(stdout, "===============================================================================\n\n");
+
+                std::fprintf(log.f, "Всего файлов %lu\n", fileList.size());
+                std::fflush(log.f);
 
                 for(std::string &file : fileList)
                 {
@@ -129,10 +179,19 @@ int main()
                     ScheduleFile schedule;
                     if(schedule.loadFromExcel(curPath + "/" + file))
                     {
+                        if(!db_changed)//При первой попытке записать расписание
+                        {
+                            // Заблокировать расписание для просмотра
+                            if(!lockManager(manager))
+                                return 1;
+                            db_changed = true;
+                        }
+
                         std::fprintf(stdout, "\n\n===============================================================================\n");
                         std::fprintf(stdout, "Обработка файла %lu из %lu\n", files_counter, fileList.size());
                         std::fprintf(stdout, "===============================================================================\n");
                         std::fflush(stdout);
+
                         if(!manager.passScheduleFile(schedule))
                         {
                             std::fprintf(stderr, "\n");
@@ -150,6 +209,15 @@ int main()
                             std::fprintf(stderr, "Файл помещён в %s\n", (DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file).c_str());
                             std::fflush(stderr);
                             chmod((DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file).c_str(), 0644);
+
+                            std::fprintf(log.f, "-------------\n");
+                            std::fprintf(log.f, " ФАЙЛ %s С ОШИБКАМИ\n", schedule.fileName().c_str());
+                            std::fprintf(log.f, "*************\n");
+                            std::fprintf(log.f, " %s\n", manager.errorString().c_str());
+                            std::fprintf(log.f, "*************\n");
+                            std::fprintf(log.f, "Всего прочитано строк: %lu\n", schedule.entries().size());
+                            std::fprintf(log.f, "=============\n");
+                            std::fflush(log.f);
                         }
                         else
                         {
@@ -165,25 +233,54 @@ int main()
                             std::fprintf(stdout, "Файл помещён в %s\n", (DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file).c_str());
                             std::fflush(stdout);
                             chmod((DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file).c_str(), 0644);
-                        }
+
+                            std::fprintf(log.f, "-------------\n");
+                            std::fprintf(log.f, " %s\n", schedule.fileName().c_str());
+                            std::fprintf(log.f, "-------------\n");
+                            std::fprintf(log.f, "Всего прочитано строк: %lu\n", schedule.entries().size());
+                            std::fprintf(log.f, "=============\n");
+                            std::fflush(log.f);
+                        }//pass file
                         std::fprintf(stdout, "\n");
                         std::fflush(stdout);
+                    }//Load excel
+                    else
+                    {
+                        std::fprintf(log.f, "-------------\n");
+                        std::fprintf(log.f, " ФАЙЛ %s НЕ ОТКРЫЛСЯ\n", schedule.fileName().c_str());
+                        std::fprintf(log.f, "*************\n");
+                        const std::vector<std::string> &errors = schedule.errorsList();
+                        for(const std::string &e : errors)
+                            std::fprintf(log.f, " %s\n", e.c_str());
+                        std::fprintf(log.f, "*************\n");
+                        std::fprintf(log.f, "Всего прочитано строк: %lu\n", schedule.entries().size());
+                        std::fprintf(log.f, "=============\n");
+                        std::fflush(log.f);
                     }
-                }
+                }//
             }
 
-            // Оптимизировать главную таблицу в завершение
-            manager.optimizeMainTable();
-            // Разблокировать расписание для просмотра
-            manager.unlockSchedule();
+            if(db_changed)
+            {
+                // Оптимизировать главную таблицу в завершение
+                manager.optimizeMainTable();
+                // Разблокировать расписание для просмотра
+                manager.unlockSchedule();
+            }
         } else {
             std::fprintf(stderr, "Can't connect database! [%s]\n", manager.dbError().c_str());
             std::fflush(stderr);
+            std::fprintf(log.f, "Can't connect database! [%s]\n", manager.dbError().c_str());
+            std::fflush(log.f);
+            return 2;
         }
     }
 
     std::fprintf(stdout, "===============================================================================\n");
-    std::fprintf(stdout, "Все изменения успешно внесены\n");
+    if(db_changed)
+        std::fprintf(stdout, "Все изменения успешно внесены\n");
+    else
+        std::fprintf(stdout, "База в актуальном состоянии, ничего не изменено!\n");
     std::fflush(stdout);
 
     return 0;

@@ -16,7 +16,7 @@ fi
 cd build
 export CC=/opt/rh/devtoolset-7/root/usr/bin/gcc
 export CXX=/opt/rh/devtoolset-7/root/usr/bin/g++
-cmake -DCMAKE_BUILD_TYPE=Release -DSD_ROOTDIR="/Server/Server_Files/WebHosting/studga.ru/sd/excels" ..
+cmake -DCMAKE_BUILD_TYPE=Release -DSD_ROOTDIR="/Server/Server_Files/WebHosting/studga.ru/sd/excels" -DSD_LOG_PATH="/Server/Server_Files/WebHosting/studga.ru/sd/CheckDB_LOG.txt" ..
 make -j 4
 cd ..
 

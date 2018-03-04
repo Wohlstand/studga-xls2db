@@ -18,6 +18,7 @@ SET(SD_ROOTDIR "/home/vitaly/Документы/StudGA" CACHE STRING "Путь �
 SET(SD_DIR_NEW "new" CACHE STRING "Имя папки кэша ново-загруженных файлов")
 SET(SD_DIR_GOOD "loaded" CACHE STRING "Имя папки кэша файлов, успешно считанных в базу данных")
 SET(SD_DIR_BAD "invalid" CACHE STRING "Имя папки кэша отклонённых файлов для считывания в базу данных")
+SET(SD_LOG_PATH "/home/vitaly/Документы/StudGA/CheckDB_LOG.txt" CACHE STRING "Путь к файлу отчёта")
 
 message("== Root directory is ${SD_ROOTDIR}")
 
@@ -73,6 +74,7 @@ target_compile_definitions(${PROJECT_NAME}
     -DDIR_EXCELS_NEW_CACHE="${SD_DIR_NEW}"
     -DDIR_EXCELS_LOADED_CACHE="${SD_DIR_GOOD}"
     -DDIR_EXCELS_INVALID_CACHE="${SD_DIR_BAD}"
+    -DSD_LOG_FILE_PATH="${SD_LOG_PATH}"
 )
 add_dependencies(${PROJECT_NAME}
     libxls_local
