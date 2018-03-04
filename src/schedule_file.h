@@ -109,6 +109,7 @@ private:
     bool                        m_isInvalid = false;
     //! Список ошибок
     std::vector<std::string>    m_errorsList;
+    void addError(const std::string &str);
     //! Проверить кэш и отправить кэш-запись в массив
     bool commitCache();
 };

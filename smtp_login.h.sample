@@ -1,0 +1,18 @@
+#ifndef SMTP_LOGIN_H
+#define SMTP_LOGIN_H
+
+#define SMTP_HOST       "<host>"
+#define SMTP_PORT        <port>
+#define SMTP_USE_SSL    <1 or 0>
+
+#define SMTP_NAMEFROM   "<name>"
+#define SMTP_MAILFROM   "<email>"
+
+#define SMTP_NAMETO     "<name>"
+#define SMTP_MAILTO     "<email>"
+
+#define SMTP_USER       "<user>"
+#define SMTP_PASS       "<password>"
+
+#endif // SMTP_LOGIN_H
+

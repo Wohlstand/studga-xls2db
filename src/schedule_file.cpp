@@ -424,8 +424,9 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
         if(sheets < 2)
         {
             xl->close();
-            std::fprintf(stderr, "WARNING: File %s has less than two sheets!\n", path.c_str());
-            std::fflush(stderr);
+            std::ostringstream errOut;
+            errOut << "WARNING: File " << path << " has less than two sheets!\n";
+            addError(errOut.str());
             m_isInvalid = true;
             return false;
         }
@@ -612,17 +613,20 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
         xl->close();
         return true;
     } else {
-        std::fprintf(stderr, "WARNING: Can't open %s file!\n", path.c_str());
-        std::fflush(stderr);
+        std::ostringstream errOut;
+        errOut << "WARNING: Невозможно открыть фалй " << path << "!\n";
+        addError(errOut.str());
         m_isInvalid = true;
         return false;
     }
 
 #ifdef ENABLE_LEGACY_COURATOR_HOUR
 invalidFormat:
-    m_errorsList.push_back("WARNING: Error while parsing file!");
-    std::fprintf(stderr, "WARNING: Error while parsing %s file! (%s)\n", path.c_str(), errorInfo.c_str());
-    std::fflush(stderr);
+    {
+        std::ostringstream errOut;
+        errOut << "WARNING: Ошибка распознания данных в файле " << path << "! (" << errorInfo << ")\n";
+        addError(errOut.str());
+    }
     m_isInvalid = true;
     return false;
 #endif
@@ -658,6 +662,13 @@ const std::vector<ScheduleFile::OneDayData_Src> &ScheduleFile::entries() const
     return m_capturedEntries;
 }
 
+void ScheduleFile::addError(const std::string &str)
+{
+    m_errorsList.push_back(str);
+    std::fprintf(stderr, "%s", str.c_str());
+    std::fflush(stderr);
+}
+
 bool ScheduleFile::commitCache()
 {
     OneDayData_Src tmp = m_cache;
@@ -667,8 +678,10 @@ bool ScheduleFile::commitCache()
     Strings::split(l_and_r, tmp.lector_name, ',');
     if((tmp.lector_name.find(',') == std::string::npos) || (l_and_r.size() > 2))
     {
-        std::fprintf(stderr, "WARNING: Подозрительное значение преподавателя [%s]!\n", tmp.lector_name.c_str());
-        std::fflush(stderr);
+        std::ostringstream errOut;
+        errOut << "WARNING: Подозрительное значение преподавателя [" << tmp.lector_name << "]!\n";
+        addError(errOut.str());
+        m_isInvalid = true;
         return false;
     }
     tmp.lector_name = Strings::trim(l_and_r[0]);
@@ -694,27 +707,26 @@ bool ScheduleFile::commitCache()
         is_valid |= std::regex_match(tmp.date_condition, range);
         if(!is_valid)
         {
-            m_errorsList.push_back("WARNING: Подозрительное значение условной даты [" + tmp.date_condition + "]!");
-            std::fprintf(stderr, "WARNING: Подозрительное значение условной даты [%s]!\n", tmp.date_condition.c_str());
-            std::fflush(stderr);
+            std::ostringstream errOut;
+            errOut << "WARNING: Подозрительное значение условной даты [" << tmp.date_condition << "]!";
+            addError(errOut.str());
+            m_isInvalid = true;
             return false;
         }
     }
 
     if(tmp.number.empty())
     {
-        m_errorsList.push_back("WARNING: Отсутствует номер занятия!");
-        std::fprintf(stderr, "WARNING: Отсутствует номер занятия!\n");
-        std::fflush(stderr);
+        addError("WARNING: Отсутствует номер занятия!");
         m_isInvalid = true;
         return false;
     } else {
         static const std::regex numeric("^[\\d]+$");
         if(!std::regex_match(tmp.number, numeric))
         {
-            m_errorsList.push_back("WARNING: Номер занятия имеет несловой вид! [" + tmp.number + "]");
-            std::fprintf(stderr, "WARNING: Номер занятия имеет несловой вид! [%s]\n", tmp.number.c_str());
-            std::fflush(stdout);
+            std::ostringstream errOut;
+            errOut << "WARNING: Номер занятия имеет несловой вид! [" << tmp.number << "]";
+            addError(errOut.str());
             m_isInvalid = true;
             return false;
         }
@@ -723,9 +735,7 @@ bool ScheduleFile::commitCache()
 
     if(tmp.week_day.empty())
     {
-        m_errorsList.push_back("WARNING: Отсутствует день недели!");
-        std::fprintf(stderr, "WARNING: Отсутствует день недели!\n");
-        std::fflush(stderr);
+        addError("WARNING: Отсутствует день недели!\n");
         m_isInvalid = true;
         return false;
     } else {
@@ -736,9 +746,9 @@ bool ScheduleFile::commitCache()
 
     if(!tmp.week_couple.empty() && tmp.week_couple != "В" && tmp.week_couple != "Н")
     {
-        m_errorsList.push_back("WARNING: Неверное значение чётности [" + tmp.week_couple + "]!");
-        std::fprintf(stderr, "WARNING: Неверное значение чётности [%s]!\n", tmp.week_couple.c_str());
-        std::fflush(stderr);
+        std::ostringstream errOut;
+        errOut << "WARNING: Неверное значение чётности [" << tmp.week_couple << "]!";
+        addError(errOut.str());
         m_isInvalid = true;
         return false;
     }

@@ -2,4 +2,5 @@
 build
 build-*
 db_login.h
+smtp_login.h
 

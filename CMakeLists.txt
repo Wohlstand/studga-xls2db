@@ -63,6 +63,7 @@ add_executable(${PROJECT_NAME}
     src/studga-xls2db.cpp
     src/schedule_file.cpp
     src/schedule_manager.cpp
+    src/report_mailer.cpp
     src/db/data_base.cpp
     src/Utils/strings.cpp
     src/Utils/files.cpp
