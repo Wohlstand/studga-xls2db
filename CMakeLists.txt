@@ -84,6 +84,7 @@ add_dependencies(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     xlsreader
     xlnt$<$<CONFIG:Debug>:d>
+    smtpclient$<$<CONFIG:Debug>:d>
     mysqlclient
     ssl
     crypto
