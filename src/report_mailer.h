@@ -34,6 +34,7 @@ class ReportEmailer
     struct ReportEntry
     {
         std::string fileName;
+        std::string filePath;
         ScheduleFile::BaseDate baseDate;
         std::vector<std::string> errorsList;
     };

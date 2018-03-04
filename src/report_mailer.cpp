@@ -43,6 +43,7 @@ void ReportEmailer::addFileWithErrors(ScheduleFile &file, std::string extraError
 
     ReportEntry entry;
     entry.fileName   = file.fileName();
+    entry.filePath   = file.filePath();
     entry.errorsList = file.errorsList();
     entry.baseDate   = file.baseDate();
     if(!extraErrorString.empty())
@@ -132,6 +133,11 @@ void ReportEmailer::sendErrorsReport()
                       SMTP_NAMETO, SMTP_MAILTO,
                       subject.c_str(),
                       body.str().c_str());
+
+    // Вложить все файлы с ошибками
+    for(ReportEntry &e : m_entries)
+        smtp_attachFile(smtp, e.filePath.c_str());
+
     smtp_endLetter(smtp);
 
     if(smtp_connect(smtp, SMTP_HOST, SMTP_PORT, (SMTP_USE_SSL ? SMTP_SSL : SMTP_NONSECURE)) < 0)
