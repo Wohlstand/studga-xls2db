@@ -1007,7 +1007,7 @@ retryQuery:
             if(isAutumn)
                 qi << "'" << year << "-09-01', '" << (year + 1) << "-01-25', '" << year << " - Осень', ";
             else
-                qi << "'" << year << "-01-26', '" << (year + 1) << "-08-01', '" << year << " - Весна', ";
+                qi << "'" << year << "-01-26', '" << year << "-08-01', '" << year << " - Весна', ";
             qi << (couples ? "1" : "0") << ");";
             if(!m_db.query(qi.str()))
                 goto dberror_is_here;
