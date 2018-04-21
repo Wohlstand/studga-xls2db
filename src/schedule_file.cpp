@@ -471,6 +471,13 @@ bool ScheduleFile::loadFromExcel(const std::string &path)
                         {
                             //Контрольная дата для отсчёта чётности
                             XlBase::Date date = xl->getDateCell(rowl, coll);
+                            if(date.day <= 0 || date.month <= 0 || date.year <= 0)
+                            {
+                                errorInfo = "Поле даты в развёрнутом расписании не правильное!";
+                                xl->close();
+                                goto invalidFormat;
+                            }
+
                             m_baseDate.date_year = date.year;
                             m_baseDate.date_month = date.month;
                             m_baseDate.date_day = date.day;
