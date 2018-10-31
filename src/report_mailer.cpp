@@ -28,8 +28,7 @@
 
 #include "../smtp_login.h"
 
-ReportEmailer::ReportEmailer()
-{}
+ReportEmailer::ReportEmailer() = default;
 
 ReportEmailer::~ReportEmailer()
 {

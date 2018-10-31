@@ -35,6 +35,7 @@ public:
     virtual ~ScheduleFile();
 
     bool loadFromExcel(const std::string &path);
+
     struct BaseDate
     {
         std::string datePoint;
@@ -43,6 +44,7 @@ public:
         int date_day    = -1;
         std::string couple;
     };
+
     struct OneDayData_Src
     {
         //! День недели

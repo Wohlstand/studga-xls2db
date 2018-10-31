@@ -60,15 +60,15 @@ ExternalProject_Add(smtpclient_external
 )
 
 add_executable(${PROJECT_NAME}
+    ${DIRMANAGER_SRCS}
     src/studga-xls2db.cpp
     src/schedule_file.cpp
     src/schedule_manager.cpp
     src/report_mailer.cpp
     src/db/data_base.cpp
     src/Utils/strings.cpp
-    src/Utils/files.cpp
-    ${DIRMANAGER_SRCS}
-)
+    src/Utils/files.cpp)
+
 target_compile_definitions(${PROJECT_NAME}
     PUBLIC
     -DDIR_EXCELS_ROOT="${SD_ROOTDIR}"

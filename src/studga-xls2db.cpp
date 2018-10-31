@@ -41,8 +41,9 @@
 class Logger
 {
 public:
-    FILE *f = NULL;
-    Logger(const std::string &logFile)
+    FILE *f = nullptr;
+
+    explicit Logger(const std::string &logFile)
     {
         std::fprintf(stdout, "Файл отчёта: %s.\n", logFile.c_str());
         std::fflush(stdout);
@@ -56,6 +57,7 @@ public:
             exit(3);
         }
     }
+
     ~Logger()
     {
         if(f)
@@ -64,9 +66,11 @@ public:
 };
 
 // Get the size of the file by its file descriptor
-static size_t get_size_by_fd(int fd) {
-    struct stat statbuf;
-    if(fstat(fd, &statbuf) < 0) exit(-1);
+static size_t get_size_by_fd(int fd)
+{
+    struct stat statbuf = {};
+    if(fstat(fd, &statbuf) < 0)
+        exit(-1);
     return (size_t)statbuf.st_size;
 }
 
@@ -80,7 +84,7 @@ bool file_md5sum(const std::string &path, unsigned char *result)
         return false;
     file_size = get_size_by_fd(file_descript);
 
-    file_buffer = (char*)mmap(0, file_size, PROT_READ, MAP_SHARED, file_descript, 0);
+    file_buffer = (char*)mmap(nullptr, file_size, PROT_READ, MAP_SHARED, file_descript, 0);
     MD5((unsigned char*) file_buffer, file_size, result);
     munmap(file_buffer, file_size);
     return true;
@@ -124,7 +128,7 @@ int main(int argc, char **argv)
     dir.setPath(DIR_EXCELS_ROOT "/" DIR_EXCELS_NEW_CACHE);
     ReportEmailer mailer;
     std::vector<std::string> filters;
-    filters.push_back(".xls");
+    filters.emplace_back(".xls");
 
     if(argc > 1)
     {
@@ -145,7 +149,6 @@ int main(int argc, char **argv)
 
     //if(dir.beginWalking(filters))
     {
-        std::string curPath;
         ScheduleManager manager;
         Logger log(SD_LOG_FILE_PATH);
 
@@ -169,8 +172,9 @@ int main(int argc, char **argv)
             chmod((DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE), 0755);
             chmod((DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE), 0755);
 
-            curPath = dir.absolutePath();
+            const std::string &curPath = dir.absolutePath();
             size_t files_counter = 1;
+
             if(dir.getListOfFiles(fileList, filters))
             //while(dir.fetchListFromWalker(curPath, fileList))
             {
@@ -185,11 +189,10 @@ int main(int argc, char **argv)
                 for(std::string &file : fileList)
                 {
                     files_counter++;
+                    const std::string curFilePath = curPath + "/" + file;
 
-                    if(sameFiles(curPath + "/" + file,
-                                 DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file) ||
-                       sameFiles(curPath + "/" + file,
-                                 DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file) )
+                    if(sameFiles(curFilePath, DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file) ||
+                       sameFiles(curFilePath, DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file) )
                     {
                         // Пропустить файл, который уже числится в базе данных и ничего не сказать об этом
                         continue;
@@ -201,7 +204,7 @@ int main(int argc, char **argv)
                     std::fflush(stdout);
 
                     ScheduleFile schedule;
-                    if(schedule.loadFromExcel(curPath + "/" + file))
+                    if(schedule.loadFromExcel(curFilePath))
                     {
                         if(!db_changed)//При первой попытке записать расписание
                         {
@@ -222,8 +225,7 @@ int main(int argc, char **argv)
                             //std::fprintf(stderr, "Файл %s содержит ошибочные данные!\n", (curPath + "/" + file).c_str());
                             std::fflush(stderr);
 
-                            Files::copyFile(DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file,
-                                            curPath + "/" + file, true);
+                            Files::copyFile(DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file, curFilePath, true);
                             std::fprintf(stderr, "===============================================================================\n");
                             std::fprintf(stderr, "Файл помещён в %s\n", (DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file).c_str());
                             std::fflush(stderr);
@@ -247,8 +249,7 @@ int main(int argc, char **argv)
                             std::fprintf(stdout, "===============================================================================\n");
                             std::fflush(stdout);
 
-                            Files::copyFile(DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file,
-                                            curPath + "/" + file, true);
+                            Files::copyFile(DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file, curFilePath, true);
                             std::fprintf(stdout, "===============================================================================\n");
                             std::fprintf(stdout, "Файл помещён в %s\n", (DIR_EXCELS_ROOT "/" DIR_EXCELS_LOADED_CACHE "/" + file).c_str());
                             std::fflush(stdout);
@@ -273,8 +274,7 @@ int main(int argc, char **argv)
                         std::fprintf(stderr, "===============================================================================\n");
                         std::fflush(stderr);
 
-                        Files::copyFile(DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file,
-                                        curPath + "/" + file, true);
+                        Files::copyFile(DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file, curFilePath, true);
                         std::fprintf(stderr, "===============================================================================\n");
                         std::fprintf(stderr, "Файл помещён в %s\n", (DIR_EXCELS_ROOT "/" DIR_EXCELS_INVALID_CACHE "/" + file).c_str());
                         std::fflush(stderr);
@@ -303,10 +303,13 @@ int main(int argc, char **argv)
                 // Разблокировать расписание для просмотра
                 manager.unlockSchedule();
             }
+
             std::fprintf(stdout, "===============================================================================\n");
             mailer.sendErrorsReport();
 
-        } else {
+        }
+        else
+        {
             std::fprintf(stderr, "Can't connect database! [%s]\n", manager.dbError().c_str());
             std::fflush(stderr);
             std::fprintf(log.f, "Can't connect database! [%s]\n", manager.dbError().c_str());

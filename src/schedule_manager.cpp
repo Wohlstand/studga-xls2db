@@ -323,11 +323,11 @@ dberror_is_here:
 }
 
 #if 0
-#define printDA(arg, ...) std::printf(arg, __VA_ARGS__)
-#define printD(arg) std::printf(arg)
+#   define printDA(arg, ...) std::printf(arg, __VA_ARGS__)
+#   define printD(arg) std::printf(arg)
 #else
-#define printDA(arg, ...)
-#define printD(arg)
+#   define printDA(arg, ...)
+#   define printD(arg)
 #endif
 
 ScheduleManager::ExInfo::Date ScheduleManager::strToDate(const std::string &dateStr,
@@ -381,8 +381,7 @@ bool ScheduleManager::buildExList(ScheduleFile &file, std::vector<ExInfo> &out_l
             printD("------------\n");
         }
 
-        else
-        if(std::regex_match(info.src_data.date_condition, range))
+        else if(std::regex_match(info.src_data.date_condition, range))
         {
             std::sregex_iterator e_iter(info.src_data.date_condition.begin(),
                                         info.src_data.date_condition.end(),
@@ -407,13 +406,13 @@ bool ScheduleManager::buildExList(ScheduleFile &file, std::vector<ExInfo> &out_l
             printD("------------\n");
         }
 
-        else
-        if(std::regex_match(info.src_data.date_condition, except))
+        else if(std::regex_match(info.src_data.date_condition, except))
         {
             std::sregex_iterator e_iter(info.src_data.date_condition.begin(),
                                         info.src_data.date_condition.end(),
                                         one_date, std::regex_constants::match_any);
             std::sregex_iterator e_end;
+
             printDA("DATES INPUT: %s\n", info.src_data.date_condition.c_str());
             while(e_iter != e_end)
             {
@@ -429,8 +428,7 @@ bool ScheduleManager::buildExList(ScheduleFile &file, std::vector<ExInfo> &out_l
             printD("------------\n");
         }
 
-        else
-        if(std::regex_match(info.src_data.date_condition, range_exc))
+        else if(std::regex_match(info.src_data.date_condition, range_exc))
         {
             std::sregex_iterator e_iter(info.src_data.date_condition.begin(),
                                         info.src_data.date_condition.end(),
@@ -520,50 +518,28 @@ bool ScheduleManager::detectSemester(std::vector<ScheduleManager::ExInfo> &out_l
     {
         for(ExInfo::Date &d : info.date_range)
         {
-            switch(d.month)
-            {
-            case 9: case 10: case 11:
-            case 12: case 1:
-                dates_autumnt++;
-                break;
-            case 2://Февраль как "весна", т.е. начало нового семестра
-            case 3: case 4: case 5:
-            case 6: case 7: case 8:
+            // Февраль как "весна", т.е. начало нового семестра
+            // Все записи с Февраля по Август будут считаться за "весенний семестр"
+            if((d.month >= 2) && (d.month <= 8))
                 dates_spring++;
-                break;
-            }
+            else
+                dates_autumnt--;
         }
 
         for(ExInfo::Date &d : info.date_only)
         {
-            switch(d.month)
-            {
-            case 9: case 10: case 11:
-            case 12: case 1:
-                dates_autumnt++;
-                break;
-            case 2://Февраль как "весна", т.е. начало нового семестра
-            case 3: case 4: case 5:
-            case 6: case 7: case 8:
+            if((d.month >= 2) && (d.month <= 8))
                 dates_spring++;
-                break;
-            }
+            else
+                dates_autumnt--;
         }
 
         for(ExInfo::Date &d : info.date_except)
         {
-            switch(d.month)
-            {
-            case 9: case 10: case 11:
-            case 12: case 1:
-                dates_autumnt++;
-                break;
-            case 2://Февраль как "весна", т.е. начало нового семестра
-            case 3: case 4: case 5:
-            case 6: case 7: case 8:
+            if((d.month >= 2) && (d.month <= 8))
                 dates_spring++;
-                break;
-            }
+            else
+                dates_autumnt--;
         }
     }
 
@@ -592,9 +568,9 @@ bool ScheduleManager::detectSemester(std::vector<ScheduleManager::ExInfo> &out_l
     bool couples = false;
     {
         //Рассчитать бит чётности
-        std::tm time;
+        std::tm time = {};
         char wbuf[3];
-        memset(&time, 0, sizeof(std::tm));
+        std::memset(&time, 0, sizeof(std::tm));
         time.tm_year = baseDate.date_year - 1900;
         time.tm_mon  = baseDate.date_month - 1;
         time.tm_mday = baseDate.date_day;
@@ -867,9 +843,7 @@ static bool optimizeMainTable_Commit(DataBase &m_db,
         std::fflush(stdout);
     }
 
-    if(!m_db.query(qu.str()))
-        return false;
-    return true;
+    return m_db.query(qu.str());
 }
 
 bool ScheduleManager::optimizeMainTable()
@@ -886,7 +860,7 @@ bool ScheduleManager::optimizeMainTable()
         goto dberror_is_here;
     if(m_db.prepareFetch() && m_db.fetchRow(row))
     {
-        total = std::stoull(row["total"].c_str(), NULL, 10);
+        total = std::stoull(row["total"].c_str(), nullptr, 10);
     }
 
     q << "SELECT id FROM `schedule__maindata` ORDER BY id ASC;";
@@ -907,7 +881,7 @@ bool ScheduleManager::optimizeMainTable()
 
             while(m_db.fetchRow(row))
             {
-                id = std::stoull(row["id"].c_str(), NULL, 10);
+                id = std::stoull(row["id"].c_str(), nullptr, 10);
                 qu_ids_in.push_back(id);
                 if(limitter <= 0)
                 {
@@ -1075,7 +1049,7 @@ retryQuery:
         if(id < 0)
         {
             std::string rankLong = rank;
-            std::unordered_map<std::string, std::string>::const_iterator rank_it = g_lectorRank.find(rank);
+            auto rank_it = g_lectorRank.find(rank);
             if(rank_it != g_lectorRank.end())
                 rankLong = rank_it->second;
 
@@ -1217,8 +1191,7 @@ retryQuery:
                     stageNum = (cabN[1][0] - '0');
                 }
             }
-            else
-            if(std::regex_match(roomName, room_newBuildWings))
+            else if(std::regex_match(roomName, room_newBuildWings))
             {
                 houseId = 6;
                 if(std::isdigit(roomName[0]))
@@ -1226,8 +1199,7 @@ retryQuery:
                 else
                     stageNum = 0;
             }
-            else
-            if(std::regex_match(roomName, room_newBuildR))
+            else if(std::regex_match(roomName, room_newBuildR))
             {
                 houseId = 6;
                 stageNum = 1;
@@ -1296,7 +1268,7 @@ retryQuery:
 
         if(id < 0)
         {
-            std::string ltypeNameLong = ltypeName;
+            const std::string &ltypeNameLong = ltypeName;
 
             std::ostringstream qi;
             qi << "INSERT INTO `schedule_ltype` ";

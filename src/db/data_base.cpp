@@ -58,7 +58,7 @@ bool DataBase::query(std::string query)
 bool DataBase::prepareFetch()
 {
     m_res = mysql_store_result(m_db);
-    return m_res != NULL;
+    return m_res != nullptr;
 }
 
 bool DataBase::fetchRow(DataBase::Row &row)
@@ -70,7 +70,7 @@ bool DataBase::fetchRow(DataBase::Row &row)
     MYSQL_FIELD *f;
     uint32_t num_fields = mysql_num_fields(m_res);
     r = mysql_fetch_row(m_res);
-    if(r == NULL)
+    if(r == nullptr)
     {
         mysql_free_result(m_res);
         m_res = nullptr;
@@ -87,7 +87,7 @@ bool DataBase::fetchRow(DataBase::Row &row)
     return true;
 }
 
-std::string DataBase::escapeString(const std::string in)
+std::string DataBase::escapeString(const std::string &in)
 {
     std::string out;
     unsigned long len;

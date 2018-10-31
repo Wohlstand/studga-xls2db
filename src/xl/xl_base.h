@@ -1,5 +1,5 @@
 /*
- * A small class to use MySQL connection via libmysqlclient
+ * MSTUCA Schedule from XLS to DataBase converter
  *
  * Copyright (c) 2018 Vitaliy Novichkov <admin@wohlnet.ru>
  *
@@ -22,38 +22,43 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef DATA_BASE_H
-#define DATA_BASE_H
+#ifndef STUDGA_XLS2DB_XL_BASE_H
+#define STUDGA_XLS2DB_XL_BASE_H
 
 #include <string>
-#include <map>
-#include <mysql/mysql.h>
 
-class DataBase
+/**
+ * @brief База для XLS и XLSX парсеров
+ */
+class XlBase
 {
-    MYSQL *m_conn = nullptr;
-    MYSQL *m_db = nullptr;
-    MYSQL_RES* m_res = nullptr;
 public:
-    typedef std::map<std::string, std::string> Row;
+    XlBase() = default;
+    virtual ~XlBase();
+    virtual bool load(const std::string &path) = 0;
+    virtual void close() = 0;
 
-    DataBase();
-    ~DataBase();
+    virtual int  sheetsCount() = 0;
+    virtual bool chooseSheet(int sheet) = 0;
+    virtual void closeSheet() = 0;
 
-    bool connect(std::string host,
-                 unsigned int port,
-                 std::string login,
-                 std::string password,
-                 std::string db);
+    struct Date
+    {
+        int year = -1;
+        int month = -1;
+        int day = -1;
+    };
 
-    bool query(std::string query);
-
-    bool prepareFetch();
-    bool fetchRow(Row &row);
-
-    std::string escapeString(const std::string &in);
-    std::string error();
-
+    virtual int  countRows() = 0;
+    virtual int  countCols() = 0;
+    virtual int  lastRow() = 0;
+    virtual int  lastCol() = 0;
+    virtual std::string getStrCell(int row, int col) = 0;
+    virtual Date getDateCell(int row, int col) = 0;
+    virtual long getLongCell(int row, int col) = 0;
+    virtual double getDoubleCell(int row, int col) = 0;
 };
 
-#endif // DATA_BASE_H
+XlBase::~XlBase() = default;
+
+#endif //STUDGA_XLS2DB_XL_BASE_H
