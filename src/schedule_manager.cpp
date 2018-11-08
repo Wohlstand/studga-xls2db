@@ -488,7 +488,7 @@ bool ScheduleManager::detectSemester(std::vector<ScheduleManager::ExInfo> &out_l
         current_month,
     #ifdef DATES_STAT_WINTER
         dates_spring  = 0,
-        dates_autumnt = 0,
+        dates_autumn = 0,
     #endif
         base_year = baseDate.date_year;
 
@@ -523,7 +523,7 @@ bool ScheduleManager::detectSemester(std::vector<ScheduleManager::ExInfo> &out_l
             if((d.month >= 2) && (d.month <= 8))
                 dates_spring++;
             else
-                dates_autumnt--;
+                dates_autumn++;
         }
 
         for(ExInfo::Date &d : info.date_only)
@@ -531,7 +531,7 @@ bool ScheduleManager::detectSemester(std::vector<ScheduleManager::ExInfo> &out_l
             if((d.month >= 2) && (d.month <= 8))
                 dates_spring++;
             else
-                dates_autumnt--;
+                dates_autumn++;
         }
 
         for(ExInfo::Date &d : info.date_except)
@@ -539,11 +539,11 @@ bool ScheduleManager::detectSemester(std::vector<ScheduleManager::ExInfo> &out_l
             if((d.month >= 2) && (d.month <= 8))
                 dates_spring++;
             else
-                dates_autumnt--;
+                dates_autumn++;
         }
     }
 
-    isAutumnWinterStat = dates_autumnt > dates_spring;
+    isAutumnWinterStat = dates_autumn > dates_spring;
     if(isAutumnWinterStat)
         std::printf("Осень-Зима %d (статистика)\n", base_year);
     else
@@ -561,6 +561,7 @@ bool ScheduleManager::detectSemester(std::vector<ScheduleManager::ExInfo> &out_l
     {
         std::fprintf(stderr, "WARNING: Базовый и Статистические сезоны не совпадают!\n");
         std::fflush(stderr);
+        m_errorString = "WARNING: Базовый и Статистические сезоны не совпадают!";
         return false;
     }
 #endif
