@@ -593,10 +593,9 @@ bool ScheduleManager::detectSemester(std::vector<ScheduleManager::ExInfo> &out_l
         std::printf("Чётности: базовая %s, рассчитанная %s (после корректировки)\n",
                     couplesBase ? "Н" : "B",
                     couplesCalculated ? "Н" : "B");
-        if(isAutumnWinterBase)
-            std::printf("Чётность: %d (осень)\n", (int)couples);
-        else
-            std::printf("Чётность: %d (весна)\n", (int)couples);
+        // Записать окончательное значение чётности
+        couples = (couplesCalculated != 0);
+        std::printf("Чётность: %d (%s)\n", (int)couples, (isAutumnWinterBase ? "осень" : "весна"));
     }
 
     int semesterID = getSemesterId(base_year, isAutumnWinterBase, couples);
