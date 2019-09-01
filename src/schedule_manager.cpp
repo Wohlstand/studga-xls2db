@@ -594,7 +594,7 @@ bool ScheduleManager::detectSemester(std::vector<ScheduleManager::ExInfo> &out_l
                     couplesBase ? "Н" : "B",
                     couplesCalculated ? "Н" : "B");
         // Записать окончательное значение чётности
-        couples = (couplesCalculated != 0);
+        couples = (couplesCalculated == 0);
         std::printf("Чётность: %d (%s)\n", (int)couples, (isAutumnWinterBase ? "осень" : "весна"));
     }
 
