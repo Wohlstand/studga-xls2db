@@ -350,6 +350,14 @@ void ScheduleFile::addError(const std::string &str)
     std::fflush(stderr);
 }
 
+static bool isForeignLanguage(const std::string &n)
+{
+    bool ret = false;
+    ret |= (n.find("Иностранный язык") != std::string::npos);
+    ret |= (n.find("Английский язык") != std::string::npos);
+    return ret;
+}
+
 bool ScheduleFile::commitCache()
 {
     OneDayData_Src tmp = m_cache;
@@ -368,7 +376,7 @@ bool ScheduleFile::commitCache()
     tmp.lector_name = Strings::trim(l_and_r[0]);
     tmp.lector_rank = Strings::trim(l_and_r.size() == 2 ? l_and_r[1] : "");
 
-    if((tmp.subgroup >= 0) && (tmp.disciplyne_name.find("Иностранный язык") == std::string::npos))
+    if((tmp.subgroup >= 0) && !isForeignLanguage(tmp.disciplyne_name))
     {
         //Добавить 2 к значению лабораторной подгруппы
         tmp.subgroup += 2;
