@@ -354,7 +354,11 @@ static bool isForeignLanguage(const std::string &n)
 {
     bool ret = false;
     ret |= (n.find("Иностранный язык") != std::string::npos);
+    ret |= (n.find("иностранный язык") != std::string::npos);
     ret |= (n.find("Английский язык") != std::string::npos);
+    ret |= (n.find("английский язык") != std::string::npos);
+    ret |= (n.find("английского языка") != std::string::npos);
+    ret |= (n.find("английском языке") != std::string::npos);
     return ret;
 }
 
