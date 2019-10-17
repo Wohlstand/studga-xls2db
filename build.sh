@@ -10,13 +10,16 @@
 # which gcc
 # gcc --version
 
+source ./build_config.sh
+
 if [ ! -d build ]; then
     mkdir build
 fi
+
 cd build
-export CC=/opt/rh/devtoolset-7/root/usr/bin/gcc
-export CXX=/opt/rh/devtoolset-7/root/usr/bin/g++
-cmake -DCMAKE_BUILD_TYPE=Release -DSD_ROOTDIR="/Server/Server_Files/WebHosting/studga.ru/sd/excels" -DSD_LOG_PATH="/Server/Server_Files/WebHosting/studga.ru/logs/CheckDB_LOG.txt" ..
+
+cmake -DCMAKE_BUILD_TYPE=Release -DSD_ROOTDIR="${SD_ROOTDIR}" -DSD_LOG_PATH="${SD_LOG_PATH}" ..
 make -j 4
+
 cd ..
 
