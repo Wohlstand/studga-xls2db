@@ -304,6 +304,7 @@ retryQuery:
             qi << "'" << flow.name << "', ";
             qi << flow.year_enter << ", ";
             qi << flow.year_quit << ", ";
+            // TODO: Заменить эту логику на использование таблицы `schedule_facult_spec`
             qi << "(SELECT id_facult FROM `schedule_facult` WHERE `fac_gr_names` like '%\"" << flow.name << "\"%' LIMIT 1), ";
             qi << 1;
             qi << ");";
